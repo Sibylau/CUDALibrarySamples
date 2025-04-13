@@ -73,33 +73,71 @@
 
 int main(void) {
     // Host problem definition
-    const int A_num_rows        = 4;
-    const int A_num_cols        = 4;
-    const int A_nnz             = 9;
-    const int A_slice_size      = 2;
-    const int A_values_size     = 12;
-    int A_num_slices            = (A_num_rows + A_slice_size - 1) / A_slice_size; // 2 
+    // const int A_num_rows        = 4;
+    // const int A_num_cols        = 4;
+    // const int A_nnz             = 9;
+    // const int A_slice_size      = 2;
+    // const int A_values_size     = 12;
+    // int A_num_slices            = (A_num_rows + A_slice_size - 1) / A_slice_size; // 2 
 
-    int     hA_sliceOffsets[]   = { 0, 6, 12 };
-    int     hA_columns[]        = { //Slice 0
-                                    0, 1,
-                                    2, -1,
-                                    3, -1,
-                                    //Slice 1
-                                    0, 1,
-                                    2, 3,
-                                    3, -1 };
-    float   hA_values[]         = { 1.0f, 4.0f,
-                                    2.0f, 0.0f,
-                                    3.0f, 0.0f,
-                                    5.0f, 8.0f,
-                                    6.0f, 9.0f,
-                                    7.0f, 0.0f };
-    float     hX[]              = { 1.0f, 2.0f, 3.0f, 4.0f };
-    float     hY[]              = { 0.0f, 0.0f, 0.0f, 0.0f };
-    float     hY_result[]       = { 19.0f, 8.0f, 51.0f, 52.0f };
+    // int     hA_sliceOffsets[]   = { 0, 6, 12 };
+    // int     hA_columns[]        = { //Slice 0
+    //                                 0, 1,
+    //                                 2, -1,
+    //                                 3, -1,
+    //                                 //Slice 1
+    //                                 0, 1,
+    //                                 2, 3,
+    //                                 3, -1 };
+    // float   hA_values[]         = { 1.0f, 4.0f,
+    //                                 2.0f, 0.0f,
+    //                                 3.0f, 0.0f,
+    //                                 5.0f, 8.0f,
+    //                                 6.0f, 9.0f,
+    //                                 7.0f, 0.0f };
+    // float     hX[]              = { 1.0f, 2.0f, 3.0f, 4.0f };
+    // float     hY[]              = { 0.0f, 0.0f, 0.0f, 0.0f };
+    // float     hY_result[]       = { 19.0f, 8.0f, 51.0f, 52.0f };
     float     alpha             = 1.0f;
     float     beta              = 0.0f;
+
+    const int A_num_rows        = 1024;
+    const int A_num_cols        = 1024;
+    const int A_nnz             = 1024*128 + 128*(1024-128);
+    const int A_slice_size      = 128;
+    const int A_values_size     = A_nnz;
+    int A_num_slices            = (A_num_rows + A_slice_size - 1) / A_slice_size; // 2 
+
+    int     hA_sliceOffsets[9]   = { 0, 131072, 147456, 163840, 180224, 196608, 212992, 229376, 245760 };
+    int     hA_columns[1024*128 + 128*(1024-128)];
+    float   hA_values[1024*128 + 128*(1024-128)];
+    float     hX[1024];
+    float     hY[1024];
+    float     hY_result[1024];
+    for (int i = 0; i < 1024; i++) {
+        hX[i] = 1.0f;
+        hY[i] = 0.0f;
+    }
+    for (int i = 0; i < 128; i++) {
+        hY_result[i] = 1024.0f;
+    }
+    for (int i = 128; i < 1024; i++) {
+        hY_result[i] = 128.0f;
+    }
+    for (int i = 0; i < 1024*128 + 128*(1024-128); i++) {
+        hA_values[i] = 1.0f;
+    }
+    for (int i = 0; i < 1024*128; i++) {
+        hA_columns[i] = i /128;
+    }
+    for (int i = 0; i < 7; i++) {
+        for (int j = 0; j < 128; j++) {
+            for (int k = 0; k < 128; k++) {
+                hA_columns[1024*128 + i*128*128 + j*128 + k] = j;
+            }
+        }
+    }
+    
     //--------------------------------------------------------------------------
     // Device memory management
     int   *dA_sliceOffsets, *dA_columns;

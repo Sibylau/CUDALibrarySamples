@@ -50,35 +50,122 @@
 #include <cstdio>
 #include <cstdlib>
 #include <vector>
-
+#include <fstream>
+#include <string>
 #include <cublas_v2.h>
 #include <cuda_runtime.h>
-
+#include <sstream>
+#include <stdexcept>
 #include "cublas_utils.h"
 
-using data_type = double;
+using data_type = float;
+
+struct MatrixData {
+    int rows;
+    int cols;
+    int nnz;  // Number of non-zero elements (for sparse matrices)
+    std::vector<data_type> values;        // For dense format
+};
+
+MatrixData read_mtx_file(const std::string& filename) {
+    std::ifstream file(filename);
+    if (!file.is_open()) {
+        throw std::runtime_error("Could not open file: " + filename);
+    }
+
+    MatrixData matrix;
+    std::string line;
+
+    // Skip comments
+    do {
+        std::getline(file, line);
+    } while (line[0] == '%');
+
+    // Read header
+    std::istringstream iss(line);
+    int rows, cols, nnz;
+    iss >> rows >> cols >> nnz;
+    
+    matrix.rows = rows;
+    matrix.cols = cols;
+    matrix.nnz = nnz;
+
+    // Read dense matrix
+    matrix.values.resize(rows * cols, 0.0f); // Initialize with zeros
+
+    for (int i = 0; i < nnz; i++) {
+        std::getline(file, line);
+        iss.clear();
+        iss.str(line);
+
+        int row, col;
+        float value;
+        iss >> row >> col >> value;
+        
+        // MTX format is 1-based, convert to 0-based
+        matrix.values[(row - 1) * cols + (col - 1)] = 1;
+    }
+
+    file.close();
+    return matrix;
+}
 
 int main(int argc, char *argv[]) {
+    MatrixData matrix;
+    matrix = read_mtx_file(argv[1]);
     cublasHandle_t cublasH = NULL;
     cudaStream_t stream = NULL;
 
-    const int m = 2;
-    const int n = 2;
-    const int k = 2;
-    const int lda = 2;
-    const int ldb = 2;
-    const int ldc = 2;
-    /*
-     *   A = | 1.0 | 2.0 |
-     *       | 3.0 | 4.0 |
-     *
-     *   B = | 5.0 | 6.0 |
-     *       | 7.0 | 8.0 |
-     */
+    // const int m = 2;
+    // const int n = 2;
+    // const int k = 2;
+    // const int lda = 2;
+    // const int ldb = 2;
+    // const int ldc = 2;
+    // /*
+    //  *   A = | 1.0 | 2.0 |
+    //  *       | 3.0 | 4.0 |
+    //  *
+    //  *   B = | 5.0 | 6.0 |
+    //  *       | 7.0 | 8.0 |
+    //  */
 
-    const std::vector<data_type> A = {1.0, 3.0, 2.0, 4.0};
-    const std::vector<data_type> B = {5.0, 7.0, 6.0, 8.0};
+    // const std::vector<data_type> A = {1.0, 3.0, 2.0, 4.0};
+    // const std::vector<data_type> B = {5.0, 7.0, 6.0, 8.0};
+
+    int m = matrix.rows;
+    int n = 1024;
+    int k = matrix.cols;
+    int lda = m;
+    int ldb = k;
+    int ldc = m;
+
+    // const std::vector<data_type> A = {1.0, 3.0, 2.0, 4.0};
+    std::vector<data_type> A = matrix.values;
+    std::vector<data_type> B(k * n);
+    for (int i = 0; i < k; i++) {
+        for (int j = 0; j < n; j++) {
+            B[i * n + j] = 1.0;
+        }
+    }
     std::vector<data_type> C(m * n);
+    std::vector<data_type> hC_result(m * n);
+    // col-major matmul
+    for (int j = 0; j < n; j++) {
+        // Middle loop over rows of C and A
+        for (int i = 0; i < m; i++) {
+            float sum = 0.0f;
+            // Inner loop over columns of A and rows of B
+            for (int l = 0; l < k; l++) {
+                // In column-major:
+                // A[i,l] is at A[i + l*m]
+                // B[l,j] is at B[l + j*k]
+                // C[i,j] is at C[i + j*m]
+                sum += A[i + l*m] * B[l + j*k];
+            }
+            hC_result[i + j*m] = sum;
+        }
+    }
     const data_type alpha = 1.0;
     const data_type beta = 0.0;
 
@@ -89,13 +176,13 @@ int main(int argc, char *argv[]) {
     cublasOperation_t transa = CUBLAS_OP_N;
     cublasOperation_t transb = CUBLAS_OP_N;
 
-    printf("A\n");
-    print_matrix(m, k, A.data(), lda);
-    printf("=====\n");
+    // printf("A\n");
+    // print_matrix(m, k, A.data(), lda);
+    // printf("=====\n");
 
-    printf("B\n");
-    print_matrix(k, n, B.data(), ldb);
-    printf("=====\n");
+    // printf("B\n");
+    // print_matrix(k, n, B.data(), ldb);
+    // printf("=====\n");
 
     /* step 1: create cublas handle, bind a stream */
     CUBLAS_CHECK(cublasCreate(&cublasH));
@@ -114,10 +201,22 @@ int main(int argc, char *argv[]) {
                                stream));
 
     /* step 3: compute */
+    cudaEvent_t start, stop;
+    cudaDeviceSynchronize();
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+    cudaEventRecord(start);
+    for (int i = 0; i < 1000; i++) {
     CUBLAS_CHECK(cublasGemmEx(
         cublasH, transa, transb, m, n, k, &alpha, d_A, traits<data_type>::cuda_data_type, lda, d_B,
         traits<data_type>::cuda_data_type, ldb, &beta, d_C, traits<data_type>::cuda_data_type, ldc,
-        CUBLAS_COMPUTE_64F, CUBLAS_GEMM_DEFAULT_TENSOR_OP));
+        CUBLAS_COMPUTE_32F_FAST_16F, CUBLAS_GEMM_DEFAULT_TENSOR_OP));
+    }
+    cudaEventRecord(stop);
+    cudaEventSynchronize(stop);
+    float elapsed_time_ms = 0.0;
+    cudaEventElapsedTime(&elapsed_time_ms, start, stop);
+    std::cout << "average_time = " << elapsed_time_ms / 1000 << " ms" << std::endl;
 
     /* step 4: copy data to host */
     CUDA_CHECK(cudaMemcpyAsync(C.data(), d_C, sizeof(data_type) * C.size(), cudaMemcpyDeviceToHost,
@@ -130,9 +229,22 @@ int main(int argc, char *argv[]) {
      *       | 43.0 | 50.0 |
      */
 
-    printf("C\n");
-    print_matrix(m, n, C.data(), ldc);
-    printf("=====\n");
+    // printf("C\n");
+    // print_matrix(m, n, C.data(), ldc);
+    // printf("=====\n");
+    bool error = false;
+    for (int i = 0; i < m; i++) {
+        for (int j = 0; j < n; j++) {
+            if (abs(C[i * n + j] - hC_result[i * n + j]) > 1e-6) {
+                printf("Error at (%d, %d): %f != %f\n", i, j, C[i * n + j], hC_result[i * n + j]);
+                error = true;
+            }
+        }
+    }
+    if (!error) {
+        printf("Test passed\n");
+    }
+
 
     /* free resources */
     CUDA_CHECK(cudaFree(d_A));

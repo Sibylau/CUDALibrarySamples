@@ -50,8 +50,8 @@ LIBS         := -lcusparse
 
 all: spmv_coo_example
 
-spmv_coo_example: spmv_coo_example.c
-	nvcc $(INC) spmv_coo_example.c -o spmv_coo_example $(LIBS)
+spmv_coo_example: spmv_coo_example.cpp mtx_read.h
+	nvcc $(INC) -G -lineinfo spmv_coo_example.cpp -o spmv_coo_example $(LIBS)
 
 clean:
 	rm -f spmv_coo_example

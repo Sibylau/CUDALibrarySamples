@@ -45,13 +45,13 @@
 # comments to the code, the above Disclaimer and U.S. Government End
 # Users Notice.
 CUDA_TOOLKIT := $(shell dirname $$(command -v nvcc))/..
-INC          := -I$(CUDA_TOOLKIT)/include
+INC          := -I$(CUDA_TOOLKIT)/include -I/work/shared/users/phd/jl3952/workspace/CUDALibrarySamples/cuSPARSE/spmm_coo
 LIBS         := -lcusparse
 
 all: spmm_coo_example
 
-spmm_coo_example: spmm_coo_example.c
-	nvcc $(INC) spmm_coo_example.c -o spmm_coo_example $(LIBS)
+spmm_coo_example: spmm_coo_example.cpp mtx_read.h
+	nvcc -std=c++11 $(INC) spmm_coo_example.cpp -o spmm_coo_example $(LIBS)
 
 clean:
 	rm -f spmm_coo_example

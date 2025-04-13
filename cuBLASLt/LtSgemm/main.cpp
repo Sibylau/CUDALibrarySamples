@@ -32,7 +32,7 @@
 #include <cublasLt.h>
 
 #include "sample_cublasLt_LtSgemm.h"
-#include "helpers.h"
+#include "helpers_no_fp4.h"
 
 int main() {
     TestBench<float> props(4, 4, 4, 2.0f, 0.0f);

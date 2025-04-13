@@ -114,8 +114,20 @@ int main(int argc, char *argv[]) {
                                stream));
 
     /* step 3: compute */
-    CUBLAS_CHECK(
-        cublasDgemm(cublasH, transa, transb, m, n, k, &alpha, d_A, lda, d_B, ldb, &beta, d_C, ldc));
+    cudaEvent_t start, stop;
+    cudaDeviceSynchronize();
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+    cudaEventRecord(start);
+    for (int i = 0; i < 1000; i++) {
+        CUBLAS_CHECK(
+            cublasDgemm(cublasH, transa, transb, m, n, k, &alpha, d_A, lda, d_B, ldb, &beta, d_C, ldc));
+    }
+    cudaEventRecord(stop);
+    cudaEventSynchronize(stop);
+    float elapsed_time_ms = 0.0;
+    cudaEventElapsedTime(&elapsed_time_ms, start, stop);
+    std::cout << "average_time = " << elapsed_time_ms / 1000 << " ms" << std::endl;
 
     /* step 4: copy data to host */
     CUDA_CHECK(cudaMemcpyAsync(C.data(), d_C, sizeof(data_type) * C.size(), cudaMemcpyDeviceToHost,

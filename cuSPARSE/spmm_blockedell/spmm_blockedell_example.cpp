@@ -51,6 +51,8 @@
 #include <cusparse.h>         // cusparseSpMM
 #include <cstdio>            // printf
 #include <cstdlib>           // EXIT_FAILURE
+#include <iostream>
+using namespace std;
 
 #define CHECK_CUDA(func)                                                       \
 {                                                                              \
@@ -77,29 +79,91 @@ const int EXIT_UNSUPPORTED = 2;
 int main() {
     // Host problem definition
     int   A_num_rows      = 4;
-    int   A_num_cols      = 4;
+    int   A_num_cols      = 6; // $$ 4
     int   A_ell_blocksize = 2;
-    int   A_ell_cols      = 2;
+    int   A_ell_cols      = 4; // $$ 2
     int   A_num_blocks    = A_ell_cols * A_num_rows /
                            (A_ell_blocksize * A_ell_blocksize);
     int   B_num_rows      = A_num_cols;
     int   B_num_cols      = 3;
-    int   ldb             = B_num_rows;
-    int   ldc             = A_num_rows;
-    int   B_size          = ldb * B_num_cols;
-    int   C_size          = ldc * B_num_cols;
-    int   hA_columns[]    = { 1, 0};
-    __half hA_values[]    = { 1.0f, 2.0f, 3.0f, 4.0f,
-                              5.0f, 6.0f, 7.0f, 8.0f};
-    __half hB[]           = { 1.0f,  2.0f,  3.0f,  4.0f,
-                              5.0f,  6.0f,  7.0f,  8.0f,
-                              9.0f, 10.0f, 11.0f, 12.0f };
-    __half hC[]           = { 0.0f, 0.0f, 0.0f, 0.0f,
+    int   ldb             = B_num_cols;
+    int   ldc             = B_num_cols;
+    int   B_size          = B_num_rows * B_num_cols;
+    int   C_size          = A_num_rows * B_num_cols;
+    // int   hA_columns[]    = { 1, 0};
+    // float hA_values[]    = { 1.0f, 2.0f, 3.0f, 4.0f,
+    //                           5.0f, 6.0f, 7.0f, 8.0f};
+    int   hA_columns[]    = { 1, 2, 0, -1};
+    // float hA_values[]    = { 1.0f, 2.0f, 3.0f, 4.0f,
+    //                           5.0f, 6.0f, 7.0f, 8.0f,
+    //                          1.0f, 1.0f, 1.0f, 1.0f,
+    //                           0.0f, 0.0f, 0.0f, 0.0f};
+    float hA_values[]    = { 1.0f, 2.0f, 1.0f, 1.0f,
+                             3.0f, 4.0f, 1.0f, 1.0f,
+                             5.0f, 6.0f, 0.0f, 0.0f,
+                             7.0f, 8.0f, 0.0f, 0.0f};
+    // float hB[]           = { 1.0f,  2.0f,  3.0f,  4.0f,
+    //                           5.0f,  6.0f,  7.0f,  8.0f,
+    //                           9.0f, 10.0f, 11.0f, 12.0f };
+    // float hB[]            = { 1.0f,  5.0f,  9.0f,  
+    //                           2.0f,  6.0f,  10.0f,  
+    //                           3.0f,  7.0f,  11.0f, 
+    //                           4.0f,  8.0f,  12.0f };
+    float hB[]            = { 1.0f,  1.0f,  1.0f,  
+                              1.0f,  1.0f,  1.0f,  
+                              1.0f,  1.0f,  1.0f,  
+                              1.0f,  1.0f,  1.0f,  
+                              1.0f,  1.0f,  1.0f,  
+                              1.0f,  1.0f,  1.0f };
+    float hC[]           = { 0.0f, 0.0f, 0.0f, 0.0f,
                               0.0f, 0.0f, 0.0f, 0.0f,
                               0.0f, 0.0f, 0.0f, 0.0f };
-    __half hC_result[]    = { 11.0f, 25.0f,  17.0f,  23.0f,
-                              23.0f, 53.0f,  61.0f,  83.0f,
-                              35.0f, 81.0f, 105.0f, 143.0f };
+    // float hC_result[]    = { 11.0f, 25.0f,  17.0f,  23.0f,
+    //                           23.0f, 53.0f,  61.0f,  83.0f,
+    //                           35.0f, 81.0f, 105.0f, 143.0f };
+    // float hC_result[]     = { 11.0f,  23.0f,  35.0f,  
+    //                           25.0f,   53.0f,  81.0f, 
+    //                           17.0f, 61.0f, 105.0f, 
+    //                           23.0f, 83.0f, 143.0f };
+    float hC_result[]     = { 5.0f,  5.0f,  5.0f,  
+                              9.0f,  9.0f,  9.0f, 
+                              11.0f, 11.0f, 11.0f, 
+                              15.0f, 15.0f, 15.0f };
+    // int   A_num_rows      = 4;
+    // int   A_num_cols      = 6;
+    // int   A_ell_blocksize = 2;
+    // int   A_ell_cols      = 4;
+    // int   A_num_blocks    = A_ell_cols * A_num_rows /
+    //                        (A_ell_blocksize * A_ell_blocksize);
+    // int   B_num_rows      = A_num_cols;
+    // int   B_num_cols      = 3;
+    // int   ldb             = B_num_rows;
+    // int   ldc             = A_num_rows;
+    // int   B_size          = B_num_rows * B_num_cols;
+    // int   C_size          = A_num_rows * B_num_cols;
+    // // int   hA_columns[]    = { 1, 2, 0, -1};
+    // // float hA_values[]    = { 1.0f, 2.0f, 3.0f, 4.0f,
+    // //                          1.0f, 1.0f, 1.0f, 1.0f,
+    // //                          5.0f, 6.0f, 7.0f, 8.0f,
+    // //                          0.0f, 0.0f, 0.0f, 0.0f};
+    // int   hA_columns[]    = { 1, 0, 2, 1};
+    // float hA_values[]    = { 1.0f, 2.0f, 3.0f, 4.0f,
+    //                           5.0f, 6.0f, 7.0f, 8.0f,
+    //                          1.0f, 1.0f, 1.0f, 1.0f,
+    //                           0.0f, 0.0f, 0.0f, 0.0f};
+    // float hB[]            = { 1.0f,  1.0f,  1.0f,  
+    //                           1.0f,  1.0f,  1.0f,  
+    //                           1.0f,  1.0f,  1.0f,  
+    //                           1.0f,  1.0f,  1.0f,  
+    //                           1.0f,  1.0f,  1.0f, 
+    //                           1.0f,  1.0f,  1.0f };
+    // float hC[]           = { 0.0f, 0.0f, 0.0f, 0.0f,
+    //                           0.0f, 0.0f, 0.0f, 0.0f,
+    //                           0.0f, 0.0f, 0.0f, 0.0f };
+    // float hC_result[]     = { 4.0f, 4.0f, 4.0f,  
+    //                           9.0f, 9.0f, 9.0f, 
+    //                           11.0f, 11.0f, 11.0f, 
+    //                           15.0f, 15.0f, 15.0f };
     float alpha           = 1.0f;
     float beta            = 0.0f;
     //--------------------------------------------------------------------------
@@ -114,22 +178,22 @@ int main() {
     //--------------------------------------------------------------------------
     // Device memory management
     int    *dA_columns;
-    __half *dA_values, *dB, *dC;
+    float *dA_values, *dB, *dC;
     CHECK_CUDA( cudaMalloc((void**) &dA_columns, A_num_blocks * sizeof(int)) )
     CHECK_CUDA( cudaMalloc((void**) &dA_values,
-                                    A_ell_cols * A_num_rows * sizeof(__half)) )
-    CHECK_CUDA( cudaMalloc((void**) &dB, B_size * sizeof(__half)) )
-    CHECK_CUDA( cudaMalloc((void**) &dC, C_size * sizeof(__half)) )
+                                    A_ell_cols * A_num_rows * sizeof(float)) )
+    CHECK_CUDA( cudaMalloc((void**) &dB, B_size * sizeof(float)) )
+    CHECK_CUDA( cudaMalloc((void**) &dC, C_size * sizeof(float)) )
 
     CHECK_CUDA( cudaMemcpy(dA_columns, hA_columns,
                            A_num_blocks * sizeof(int),
                            cudaMemcpyHostToDevice) )
     CHECK_CUDA( cudaMemcpy(dA_values, hA_values,
-                           A_ell_cols * A_num_rows * sizeof(__half),
+                           A_ell_cols * A_num_rows * sizeof(float),
                            cudaMemcpyHostToDevice) )
-    CHECK_CUDA( cudaMemcpy(dB, hB, B_size * sizeof(__half),
+    CHECK_CUDA( cudaMemcpy(dB, hB, B_size * sizeof(float),
                            cudaMemcpyHostToDevice) )
-    CHECK_CUDA( cudaMemcpy(dC, hC, C_size * sizeof(__half),
+    CHECK_CUDA( cudaMemcpy(dC, hC, C_size * sizeof(float),
                            cudaMemcpyHostToDevice) )
     //--------------------------------------------------------------------------
     // CUSPARSE APIs
@@ -145,13 +209,13 @@ int main() {
                                       A_num_rows, A_num_cols, A_ell_blocksize,
                                       A_ell_cols, dA_columns, dA_values,
                                       CUSPARSE_INDEX_32I,
-                                      CUSPARSE_INDEX_BASE_ZERO, CUDA_R_16F) )
+                                      CUSPARSE_INDEX_BASE_ZERO, CUDA_R_32F) )
     // Create dense matrix B
     CHECK_CUSPARSE( cusparseCreateDnMat(&matB, A_num_cols, B_num_cols, ldb, dB,
-                                        CUDA_R_16F, CUSPARSE_ORDER_COL) )
+                                        CUDA_R_32F, CUSPARSE_ORDER_ROW) )
     // Create dense matrix C
     CHECK_CUSPARSE( cusparseCreateDnMat(&matC, A_num_rows, B_num_cols, ldc, dC,
-                                        CUDA_R_16F, CUSPARSE_ORDER_COL) )
+                                        CUDA_R_32F, CUSPARSE_ORDER_ROW) )
     // allocate an external buffer if needed
     CHECK_CUSPARSE( cusparseSpMM_bufferSize(
                                  handle,
@@ -175,13 +239,14 @@ int main() {
     CHECK_CUSPARSE( cusparseDestroy(handle) )
     //--------------------------------------------------------------------------
     // device result check
-    CHECK_CUDA( cudaMemcpy(hC, dC, C_size * sizeof(__half),
+    CHECK_CUDA( cudaMemcpy(hC, dC, C_size * sizeof(float),
                            cudaMemcpyDeviceToHost) )
     int correct = 1;
     for (int i = 0; i < A_num_rows; i++) {
         for (int j = 0; j < B_num_cols; j++) {
-            float c_value  = static_cast<float>(hC[i + j * ldc]);
-            float c_result = static_cast<float>(hC_result[i + j * ldc]);
+            float c_value  = static_cast<float>(hC[i* ldc + j]);
+            float c_result = static_cast<float>(hC_result[i* ldc + j]);
+            std::cout << "hC[" << i << "][" << j << "] = " << c_value << std::endl;
             if (c_value != c_result) {
                 correct = 0; // direct floating point comparison is not reliable
                 break;
