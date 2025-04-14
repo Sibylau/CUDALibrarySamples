@@ -1,0 +1,1 @@
+/usr/bin/c++ CMakeFiles/sample_cublasLt_LtIgemmTensor.dir/main.cpp.o CMakeFiles/sample_cublasLt_LtIgemmTensor.dir/sample_cublasLt_LtIgemmTensor.cu.o -o sample_cublasLt_LtIgemmTensor   -L/usr/local/cuda-12.6/targets/x86_64-linux/lib/stubs  -L/usr/local/cuda-12.6/targets/x86_64-linux/lib  -lcudart -lcublasLt -lcudadevrt -lcudart_static -lrt -lpthread -ldl 
